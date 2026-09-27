@@ -74,7 +74,7 @@ npm run dev
 
 ## 素材
 
-- 角色：`../godot/assets/characters/*.glb`。兔子與小貓的 4096 貼圖用 `scripts/optimize_glb.py` 縮成 2048 JPEG（原檔不動）。
+- 角色：`../godot/assets/characters/*.glb`。兔子與小貓的 4096 貼圖先用 `scripts/optimize_glb.py` 縮成 2048，再用 `npx @gltf-transform/cli optimize … --compress meshopt --texture-compress webp --simplify false --join false` 壓縮（六隻共約 4.7 MB，原檔不動）。
 - 天空：`../godot/assets/worlds/grassland/azure-sky.png`（草原、沙漠、海島）；冰河與雲海的天空由程式繪製。
 - 字型：Google Fonts 的 Noto Sans TC，離線時改用微軟正黑體。
 

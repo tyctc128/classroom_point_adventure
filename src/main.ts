@@ -191,13 +191,17 @@ async function main(): Promise<void> {
   });
 
   const t1 = performance.now();
-  await Promise.all([roster.load(), loadWorld(store.world)]);
-  console.info(`[characters] loaded in ${Math.round(performance.now() - t1)} ms`);
+  // Show the island as soon as it is built; each character appears the moment its model arrives.
   roster.characters.forEach((c) => c.setScore(store.scores[c.team.id], store.goal, 0, false, 0));
+  const charactersReady = roster.load((c) => {
+    c.setScore(store.scores[c.team.id], store.goal, 0, false, now());
+    c.setRestYaw(OVERVIEW.position);
+  }).then(() => console.info(`[characters] loaded in ${Math.round(performance.now() - t1)} ms`));
+  await loadWorld(store.world);
   roster.update(0, 0);
   roster.update(1, 0); // settle formation offsets before first frame
-  roster.characters.forEach((c) => c.setRestYaw(OVERVIEW.position));
   ui.render();
+  void charactersReady;
 
   let clockTimer = 0;
   renderer.setAnimationLoop((timestamp) => {

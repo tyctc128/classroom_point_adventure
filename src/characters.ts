@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { CASTLE, GOAL_S, onBridge, PATH, START_S, walkHeight } from './world/layout';
 import { IDLE, REACTIONS, Team, TEAMS } from './teams';
 
@@ -366,10 +367,12 @@ export class Roster {
     this.group.name = 'Characters';
   }
 
-  async load(): Promise<void> {
+  /** Load every character in parallel; `onEach` runs as soon as each one is ready so it can appear at once. */
+  async load(onEach?: (c: TeamCharacter) => void): Promise<void> {
     const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder); // models are meshopt-compressed (scripts/optimize_glb.py + gltf-transform)
     const base = import.meta.env.BASE_URL;
-    await Promise.all(this.characters.map((c) => c.load(loader, base)));
+    await Promise.all(this.characters.map((c) => c.load(loader, base).then(() => onEach?.(c))));
   }
 
   byId(id: string): TeamCharacter {

@@ -432,7 +432,7 @@ function cloudTexture(): THREE.CanvasTexture {
 }
 
 /** Soft billboard cloud puffs: lit white tops, lavender undersides, gently drifting. */
-function cloudPuffs(items: { x: number; y: number; z: number; s: number }[]): THREE.Mesh {
+function cloudPuffs(items: { x: number; y: number; z: number; s: number; drift?: number }[]): THREE.Mesh {
   const base = new THREE.PlaneGeometry(1, 1);
   const geo = new THREE.InstancedBufferGeometry();
   geo.index = base.index;
@@ -441,14 +441,17 @@ function cloudPuffs(items: { x: number; y: number; z: number; s: number }[]): TH
   const offset = new Float32Array(items.length * 3);
   const scale = new Float32Array(items.length);
   const seed = new Float32Array(items.length);
+  const drift = new Float32Array(items.length);
   items.forEach((it, i) => {
     offset.set([it.x, it.y, it.z], i * 3);
     scale[i] = it.s;
     seed[i] = (i * 0.618) % 1;
+    drift[i] = it.drift ?? 1;
   });
   geo.setAttribute('aOffset', new THREE.InstancedBufferAttribute(offset, 3));
   geo.setAttribute('aScale', new THREE.InstancedBufferAttribute(scale, 1));
   geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 1));
+  geo.setAttribute('aDrift', new THREE.InstancedBufferAttribute(drift, 1));
   geo.instanceCount = items.length;
   const material = new THREE.ShaderMaterial({
     transparent: true,
@@ -459,15 +462,25 @@ function cloudPuffs(items: { x: number; y: number; z: number; s: number }[]): TH
 attribute vec3 aOffset;
 attribute float aScale;
 attribute float aSeed;
+attribute float aDrift;
 uniform float uTime;
 varying vec2 vUv;
 varying float vSeed;
 #include <fog_pars_vertex>
 void main() {
-  vec3 centre = aOffset + vec3(sin(uTime * 0.03 + aSeed * 6.28) * 6.0, sin(uTime * 0.2 + aSeed * 12.0) * 0.6, 0.0);
+  // Wind carries every cloud slowly along +x (each at its own pace) and wraps it round to the far side,
+  // while it gently rises, sinks and billows like a real cumulus.
+  float speed = 2.2 + aSeed * 2.6;
+  float span = 1800.0;
+  // aDrift 0 = stays put (clouds near the islands must never drift over the route), just sways.
+  float x = mix(aOffset.x + sin(uTime * 0.03 + aSeed * 6.28) * 6.0, mod(aOffset.x + 900.0 + uTime * speed, span) - 900.0, aDrift);
+  float z = aOffset.z + sin(uTime * 0.05 + aSeed * 9.0) * 5.0;
+  float y = aOffset.y + sin(uTime * 0.22 + aSeed * 12.0) * 1.2;
+  vec3 centre = vec3(x, y, z);
   vec4 mvPosition = viewMatrix * vec4(centre, 1.0);
-  float a = aSeed * 6.28;
-  vec2 corner = position.xy * vec2(1.6, 1.0) * aScale;
+  float a = aSeed * 6.28 + sin(uTime * 0.04 + aSeed * 5.0) * 0.6;
+  float billow = 1.0 + 0.08 * sin(uTime * 0.3 + aSeed * 20.0);
+  vec2 corner = position.xy * vec2(1.6, 1.0) * aScale * billow;
   mvPosition.xy += vec2(corner.x * cos(a * 0.1) - corner.y * sin(a * 0.1), corner.x * sin(a * 0.1) + corner.y * cos(a * 0.1));
   vUv = uv;
   vSeed = aSeed;
@@ -507,7 +520,7 @@ function cloudSea(): THREE.Group {
   base.position.y = -22;
   group.add(base);
   const random = mulberry32(88);
-  const items: { x: number; y: number; z: number; s: number }[] = [];
+  const items: { x: number; y: number; z: number; s: number; drift?: number }[] = [];
   // Dense rolling layer of cumulus tops.
   for (let i = 0; i < 1500; i++) {
     const x = -900 + random() * 1800;
@@ -519,7 +532,7 @@ function cloudSea(): THREE.Group {
     const x = -420 + random() * 840;
     const z = -520 + random() * 620;
     if (PATH.nearest(x, z, 70).d < 70) continue;
-    items.push({ x, y: 20 + random() * 60, z, s: 18 + random() * 26 });
+    items.push({ x, y: 20 + random() * 60, z, s: 18 + random() * 26, drift: 0 });
   }
   group.add(cloudPuffs(items));
   return group;

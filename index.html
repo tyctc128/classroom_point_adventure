@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="小組冒險島：班級合作與積分冒險" />
+    <title>小組冒險島</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23254d41'/%3E%3Cpath d='M8 50 26 22l9 13 7-9 14 24z' fill='%23f4d35e'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div id="labels" aria-hidden="true"></div>
+
+    <header class="topbar glass">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#254d41"/><path d="M8 50 26 22l9 13 7-9 14 24z" fill="#f4d35e"/><circle cx="46" cy="18" r="5" fill="#fff4d6"/></svg>
+        </div>
+        <div>
+          <h1>小組冒險島</h1>
+          <p>一起學習，一起抵達。</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span id="date" class="muted"></span>
+        <span class="divider"></span>
+        <span id="goal"></span>
+        <div class="world-pick">
+          <button id="world-btn" class="btn soft" aria-haspopup="true">世界：<span id="world-name">遼闊草原</span> ▾</button>
+          <div id="world-menu" class="menu" role="menu"></div>
+        </div>
+        <button id="rank-btn" class="btn soft">每日排名</button>
+        <button id="projector" class="btn soft">投影模式</button>
+        <div id="auth" class="auth-top"></div>
+      </div>
+    </header>
+
+    <section class="world-title">
+      <span class="eyebrow" id="world-eyebrow">WORLD 01 / GRASSLAND</span>
+      <h2>今天，一起向前走。</h2>
+      <p id="world-tagline">遼闊草原 · 每一分，都是團隊的進步</p>
+    </section>
+
+    <aside id="panel" class="panel glass">
+      <span class="eyebrow">TEACHER'S DESK</span>
+      <h3>為團隊加油</h3>
+      <p class="muted small">點吉祥物、名牌或下方組別，即可加扣分</p>
+      <hr />
+      <div class="sel-row">
+        <span class="swatch" id="sel-swatch"></span>
+        <span id="sel-name"></span>
+      </div>
+      <div class="score-row"><span id="sel-score">0</span><span class="muted small">今日積分</span></div>
+      <p id="sel-sub" class="muted small"></p>
+      <div class="quick">
+        <button class="btn dark big" data-delta="1">＋1</button>
+        <button class="btn dark big" data-delta="2">＋2</button>
+        <button class="btn dark big" data-delta="3">＋3</button>
+        <button class="btn dark big" data-delta="5">＋5</button>
+      </div>
+      <div class="custom">
+        <input id="custom" type="number" min="-100" max="100" step="1" value="1" aria-label="自訂分數" />
+        <button id="apply" class="btn soft">套用</button>
+        <button class="btn soft" data-delta="-1">－1</button>
+      </div>
+      <select id="reason" aria-label="加扣分理由"></select>
+      <button id="undo" class="btn soft wide">撤銷上一筆</button>
+      <div class="grow"></div>
+      <p id="mode-hint" class="muted tiny center"></p>
+    </aside>
+
+    <footer class="bottom">
+      <div class="camera-bar">
+        <button class="btn chip" id="zoom-out" title="拉遠">－</button>
+        <button class="btn chip" id="zoom-in" title="拉近">＋</button>
+        <button class="btn chip" id="bird">鳥瞰</button>
+        <button class="btn chip" id="reset">重設視角</button>
+        <button class="btn chip" id="follow">自動聚焦：開</button>
+        <span class="hint">拖曳旋轉 · 滾輪縮放 · 右鍵平移 · R 重設</span>
+        <div class="grow"></div>
+        <button class="btn chip" id="fullscreen">全螢幕</button>
+      </div>
+      <div id="cards" class="cards"></div>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="rank-dialog" class="modal" hidden>
+      <div class="modal-card glass" role="dialog" aria-labelledby="rank-title">
+        <div class="modal-head">
+          <h3 id="rank-title">每日排名</h3>
+          <select id="rank-day" aria-label="選擇日期"></select>
+          <button id="rank-close" class="btn soft" aria-label="關閉">關閉</button>
+        </div>
+        <p id="rank-note" class="muted small"></p>
+        <ol id="rank-list" class="rank-list"></ol>
+      </div>
+    </div>
+    <div id="loading" class="loading"><div class="spinner"></div><p>正在建造草原…</p></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

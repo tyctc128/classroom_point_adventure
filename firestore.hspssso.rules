@@ -1,0 +1,51 @@
+    // === 小組冒險島（classroomAdventure）========================================
+    // 貼進 hspssso 專案 firestore.rules 的 `match /databases/{database}/documents {` 區塊內。
+    // 所有人（含未登入的投影畫面）都能讀；只有 role 為 admin 的帳號能寫。
+    // 22:00（台北時間）後當日記錄自動鎖定，成為當日結算結果。
+    function isAdventureTeacher() {
+      return request.auth != null
+        && (request.auth.token.admin == true || request.auth.token.role == 'admin');
+    }
+    function adventureTeams(m) {
+      return m.keys().hasOnly(['zeus', 'monster2', 'monster', 'rabbit', 'fighter', 'cat']);
+    }
+    match /classroomAdventure/{classId} {
+      allow read: if true;
+      allow create, update: if isAdventureTeacher()
+        && request.resource.data.keys().hasOnly(['goal', 'teamNames', 'updatedAt'])
+        && request.resource.data.goal is int
+        && request.resource.data.goal >= 1 && request.resource.data.goal <= 999
+        && adventureTeams(request.resource.data.teamNames);
+
+      match /days/{day} {
+        allow read: if true;
+        allow create: if isAdventureTeacher()
+          && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.day == day
+          && request.resource.data.serial == 0
+          && request.resource.data.closesAt is timestamp
+          && request.resource.data.closesAt > request.time
+          && request.resource.data.closesAt < request.time + duration.value(24, 'h')
+          && adventureTeams(request.resource.data.scores);
+        allow update: if isAdventureTeacher()
+          && request.time < resource.data.closesAt
+          && request.resource.data.day == resource.data.day
+          && request.resource.data.closesAt == resource.data.closesAt
+          && adventureTeams(request.resource.data.scores)
+          && (request.resource.data.serial == resource.data.serial
+              || request.resource.data.serial == resource.data.serial + 1);
+
+        match /events/{eventId} {
+          allow read: if true;
+          allow create: if isAdventureTeacher()
+            && request.time < get(/databases/$(database)/documents/classroomAdventure/$(classId)/days/$(day)).data.closesAt
+            && request.resource.data.kind in ['score', 'undo']
+            && request.resource.data.delta is int
+            && request.resource.data.delta >= -99999 && request.resource.data.delta <= 99999;
+          allow update: if isAdventureTeacher()
+            && request.time < get(/databases/$(database)/documents/classroomAdventure/$(classId)/days/$(day)).data.closesAt
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['undone'])
+            && request.resource.data.undone == true;
+        }
+      }
+    }

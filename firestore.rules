@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// 小組冒險島：所有人都能看；只有下方名單中的教師 Google 帳號能改分數。
+// 22:00（台北時間）後當日記錄自動鎖定，成為當日結算結果。
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ★ 把教師的 Gmail 加進這個清單（也要同步寫進 src/firebase-config.ts 的 teacherEmails）。
+    function isTeacher() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in ['teacher@example.com'];
+    }
+
+    function validTeamMap(m) {
+      return m.keys().hasOnly(['zeus', 'monster2', 'monster', 'rabbit', 'fighter', 'cat']);
+    }
+
+    match /classes/{classId} {
+      allow read: if true;
+      allow create, update: if isTeacher()
+        && request.resource.data.keys().hasOnly(['goal', 'teamNames', 'updatedAt'])
+        && request.resource.data.goal is int
+        && request.resource.data.goal >= 1 && request.resource.data.goal <= 999
+        && validTeamMap(request.resource.data.teamNames);
+
+      match /days/{day} {
+        allow read: if true;
+
+        // 今日記錄：分數從 0 開始，結算時間必須在未來 24 小時內。
+        allow create: if isTeacher()
+          && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && request.resource.data.day == day
+          && request.resource.data.serial == 0
+          && request.resource.data.closesAt is timestamp
+          && request.resource.data.closesAt > request.time
+          && request.resource.data.closesAt < request.time + duration.value(24, 'h')
+          && validTeamMap(request.resource.data.scores);
+
+        // 結算前才能改；日期與結算時間不能改；序號只能遞增 1。
+        allow update: if isTeacher()
+          && request.time < resource.data.closesAt
+          && request.resource.data.day == resource.data.day
+          && request.resource.data.closesAt == resource.data.closesAt
+          && validTeamMap(request.resource.data.scores)
+          && (request.resource.data.serial == resource.data.serial
+              || request.resource.data.serial == resource.data.serial + 1);
+
+        match /events/{eventId} {
+          allow read: if true;
+          allow create: if isTeacher()
+            && request.time < get(/databases/$(database)/documents/classes/$(classId)/days/$(day)).data.closesAt
+            && request.resource.data.kind in ['score', 'undo']
+            && request.resource.data.delta is int
+            && request.resource.data.delta >= -99999 && request.resource.data.delta <= 99999;
+          // 只允許把事件標記為「已撤銷」。
+          allow update: if isTeacher()
+            && request.time < get(/databases/$(database)/documents/classes/$(classId)/days/$(day)).data.closesAt
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['undone'])
+            && request.resource.data.undone == true;
+        }
+      }
+    }
+  }
+}

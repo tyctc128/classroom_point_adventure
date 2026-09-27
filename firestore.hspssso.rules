@@ -12,10 +12,14 @@
     match /classroomAdventure/{classId} {
       allow read: if true;
       allow create, update: if isAdventureTeacher()
-        && request.resource.data.keys().hasOnly(['goal', 'teamNames', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['goal', 'teamNames', 'world', 'updatedAt'])
         && request.resource.data.goal is int
         && request.resource.data.goal >= 1 && request.resource.data.goal <= 999
-        && adventureTeams(request.resource.data.teamNames);
+        && adventureTeams(request.resource.data.teamNames)
+        && (!('world' in request.resource.data)
+            || (request.resource.data.world.keys().hasOnly(['day', 'id'])
+                && request.resource.data.world.day is string
+                && request.resource.data.world.id in ['grassland', 'glacier', 'desert', 'skyland', 'islands']));
 
       match /days/{day} {
         allow read: if true;

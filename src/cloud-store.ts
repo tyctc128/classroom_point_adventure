@@ -46,6 +46,10 @@ export class CloudStore implements GameStore {
   /** True once the day document exists in Firestore. */
   dayReady = false;
   private closesAt = 0;
+  /** World a teacher picked (kept in the class settings so it works after 22:00 too). */
+  private chosenWorld: { day: string; id: WorldId } | null = null;
+  /** World recorded on today's score document, if any. */
+  private dayWorld: WorldId | null = null;
   private db: any = null;
   private listeners: ((e: ChangeEvent) => void)[] = [];
   private errorListeners: ((message: string) => void)[] = [];
@@ -131,6 +135,9 @@ export class CloudStore implements GameStore {
       this.goal = Number(data.goal) || 30;
       const names = (data.teamNames ?? {}) as Record<string, string>;
       for (const t of TEAMS) this.teamNames[t.id] = names[t.id] || t.name;
+      const w = data.world as { day?: string; id?: string } | undefined;
+      this.chosenWorld = w && typeof w.day === 'string' && WORLD_IDS.includes(w.id as WorldId) ? { day: w.day, id: w.id as WorldId } : null;
+      this.applyWorld();
       this.emit({ kind: 'settings' });
     }, (err: any) => this.fail(`雲端連線失敗：${err.message}`));
     this.openDay(taipeiParts(this.now()).day, true);
@@ -141,7 +148,8 @@ export class CloudStore implements GameStore {
     this.day = day;
     this.closesAt = closesAtMs(day);
     this.closed = this.now() >= this.closesAt;
-    this.world = dailyWorld(day);
+    this.dayWorld = null;
+    this.world = this.chosenWorld?.day === day ? this.chosenWorld.id : dailyWorld(day);
     this.dayReady = false;
     this.events = [];
     this.seen.clear();
@@ -157,11 +165,8 @@ export class CloudStore implements GameStore {
         }
         const scores = (data.scores ?? {}) as Record<string, number>;
         for (const t of TEAMS) this.scores[t.id] = Number(scores[t.id]) || 0;
-        const world = WORLD_IDS.includes(data.world) ? (data.world as WorldId) : dailyWorld(day);
-        if (world !== this.world) {
-          this.world = world;
-          this.emit({ kind: 'world' });
-        }
+        this.dayWorld = WORLD_IDS.includes(data.world) ? (data.world as WorldId) : null;
+        this.applyWorld();
         this.emit({ kind: 'settings' });
       }, (err: any) => this.fail(`雲端連線失敗：${err.message}`)),
       onSnapshot(query(collection(this.dayRef(), 'events'), orderBy('seq')), (snap: any) => {
@@ -321,6 +326,15 @@ export class CloudStore implements GameStore {
   }
 
   /** A teacher switching the world switches it for every browser watching today. */
+  /** Today's world: a teacher's pick for today wins, then the day record, then the daily random world. */
+  private applyWorld(): void {
+    const world = this.chosenWorld?.day === this.day ? this.chosenWorld.id : this.dayWorld ?? dailyWorld(this.day);
+    if (world !== this.world) {
+      this.world = world;
+      this.emit({ kind: 'world' });
+    }
+  }
+
   setWorld(id: WorldId): void {
     if (!this.canEdit) {
       // Viewers may still preview another world locally.
@@ -328,8 +342,13 @@ export class CloudStore implements GameStore {
       this.emit({ kind: 'world' });
       return;
     }
-    void updateDoc(this.dayRef(), { world: id, updatedAt: serverTimestamp() })
+    // Switch here at once; the class settings carry it to every other screen. Not locked at 22:00.
+    this.chosenWorld = { day: this.day, id };
+    this.applyWorld();
+    void setDoc(this.classRef, { goal: this.goal, teamNames: this.teamNames, world: { day: this.day, id }, updatedAt: serverTimestamp() }, { merge: true })
       .catch((err: any) => this.fail(`切換世界失敗：${err.message}`));
+    // Also record it on today's scores (for the ranking history) while the day is still open.
+    if (this.dayReady && !this.closed) void updateDoc(this.dayRef(), { world: id, updatedAt: serverTimestamp() }).catch(() => undefined);
   }
 
   async history(): Promise<DayRecord[]> {
@@ -338,7 +357,9 @@ export class CloudStore implements GameStore {
       const data = d.data();
       return { day: String(data.day ?? d.id), scores: (data.scores ?? {}) as Record<string, number>, goal: Number(data.goal) || 30, world: data.world } as DayRecord;
     });
-    if (!rows.some((r: any) => r.day === this.day)) rows.unshift({ day: this.day, scores: { ...this.scores }, goal: this.goal, world: this.world });
+    const today = rows.find((r: any) => r.day === this.day);
+    if (today) today.world = this.world;
+    else rows.unshift({ day: this.day, scores: { ...this.scores }, goal: this.goal, world: this.world });
     return rows;
   }
 }

@@ -96,6 +96,7 @@ async function main(): Promise<void> {
 
   store.onError((m) => ui.toast(m));
   if (notice) ui.toast(notice);
+  if (demo) document.body.classList.add('demo'); // sample scores only: show a clear badge
   const debug: Record<string, unknown> = { store, roster, rig, scene, renderer, ui };
   (window as unknown as Record<string, unknown>).__game = debug;
   if (demo && demo !== 'start') {

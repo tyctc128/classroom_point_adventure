@@ -215,3 +215,11 @@ body.viewer .panel { display: none; }
 body.viewer .bottom { right: var(--gap); }
 body.viewer .toast { left: 50vw; }
 body.viewer .tag { cursor: default; }
+
+/* Demo mode (?demo=…): make it obvious these are sample scores */
+.demo-badge { display: none; }
+body.demo .demo-badge {
+  display: block; position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 40;
+  background: #e0533d; color: #fff; font-weight: 900; font-size: 14px; letter-spacing: 0.05em;
+  padding: 4px 16px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}

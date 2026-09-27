@@ -1,6 +1,6 @@
 // Island-based worlds from 04_五種寬闊場景概念圖.png:
 //   極地冰河  thick tabular ice slabs with sheer blue walls floating on a dark sea
-//   雲海天空  floating islands (the decorative ones drift gently) over a soft sea of clouds
+//   漂浮島嶼  floating islands (the decorative ones drift gently) over a soft sea of clouds
 //   寧靜海島  hilly tropical islands with beaches, palms and reefs in a turquoise sea
 // All keep the shared race path: islands sit along it and wooden bridges carry the path across the
 // gaps, so the characters walk exactly as in the other worlds.
